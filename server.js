@@ -3,13 +3,12 @@
 let app = require('express')();
 let http = require('http').Server(app);
 let io = require('socket.io')(http);
+var roomIdsOccupied = [];
 
 io.on('connection', (socket) => {
   console.log('USER CONNECTED');
-  var roomId = null;
 
-  socket.on('createRoom', (roomId) => {
-    console.log(roomId);
+  socket.on('joinRoom', (roomId) => {
     socket.join(roomId);
 
     socket.on('add-message', (message) => {
@@ -21,8 +20,6 @@ io.on('connection', (socket) => {
     });
 
   });
-
-
 });
 
 http.listen(8080, () => {
