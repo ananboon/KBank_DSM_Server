@@ -19,17 +19,17 @@ var pool = mysql.createPool({
   database: databaseKbank
 });
 
-// Mock users
-// global users = [];
 
-//Need a way to know which is pc and which is tablet in a room;
+global.rooms = [];
+
 const rowCounter = 'RowCounter';
 const customer = 'Customer';
 
 const noRoom = 'No room with the roomId';
 const roomFull = 'Full';
 
-// Use promise
+////////////////////////////////////////////////////////////////////////////////////////////
+
 io.on('connection', (socket) => {
   console.log('USER CONNECTED');
 
@@ -39,37 +39,14 @@ io.on('connection', (socket) => {
       var username = message.message.username;
       var password = message.message.password;
 
-      pool.getConnection((error,connection) => {
-        if(error){
-          console.log('there is an error to the database connection');
-          return ;
-        }else{
-          var query = 'SELECT Id, FirstName, LastName, Position, Location FROM Users WHERE Username = ? AND Password = ?';
-          var values = [username,password];
-          var statement = mysql.format(query,values);
+      getDatabaseConnection()
+      .then(queryUserData.bind(null,username,password)).catch(errorHandler.bind(null,socket))
+      .then(getUserData.bind(null,socket)).catch(errorHandler.bind(null,socket));
 
-          connection.query(statement,(error,rows) => {
-            if(error){
-              console.log('error querying');
-            }else{
-              message = {
-                component: 'user-data',
-                message: {
-                  id: rows[0].id,
-                  firstname: rows[0].firstname,
-                  lastname: rows[0].lastname,
-                  position: rows[0].position,
-                  location: rows[0].location
-                }
-              };
-
-            }
-          });
-        }
-      });
-    }else if(message.component === 'joinRoom'){
+    }else if(message.component === 'connect'){
       var role = message.message.role;
       var roomId = message.message.roomId;
+
       checkNumOfUsersInRoom(socket,role,roomId);
     }else{
       socket.broadcast.to(message.clientId).emit('message',message);
@@ -77,23 +54,91 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', ()=> {
+
     console.log('User disconnected');
   });
 });
+
+////////////////////////////////////////////////////////////////////////////////////////////
+
+function errorHandler(socket,error){
+  console.log(error);
+  var message = {
+    component: 'login-error',
+    message: 'Error'
+  }
+  socket.emit('message',message);
+}
+
+function getDatabaseConnection(){
+  var promise = new Promise((resolve,reject) => {
+    pool.getConnection((error,connection) => {
+      if(error){
+        connection.release();
+        reject(error);
+      }else{
+        resolve(connection);
+      }
+    });
+  });
+  return promise;
+}
+
+function queryUserData(username,password,connection){
+
+  var query = 'SELECT Id, FirstName, LastName, Position, Location FROM Users WHERE Username = ? AND Password = ?';
+  var values = [username,password];
+  var statement = mysql.format(query,values);
+
+  var promise = new Promise((resolve,reject) => {
+    connection.query(statement, (error,rows) => {
+      if(error){
+        reject(error);
+      }else{
+        resolve(rows);
+      }
+      connection.release();
+    });
+  });
+  return promise;
+}
+
+function getUserData(socket,rows){
+  var roomId = rows[0].Id;
+
+  var user = {
+    id: rows[0].Id,
+    firstname: rows[0].FirstName,
+    lastname: rows[0].LastName,
+    position: rows[0].Position,
+    location: rows[0].Location
+  }
+
+  var message = {
+    component: 'user-data',
+    message: user
+  };
+
+  socket.nickname = rowCounter;
+  socket.join(roomId);
+  rooms[roomId] = user;
+
+  console.log(rooms[roomId]);
+
+  socket.emit('message',message);
+}
+
 
 function checkNumOfUsersInRoom(socket,role, roomId){
     // Check if room full
     // If first member in room then must be row counter
     // If second member then must be customer
+
     var clients = io.sockets.adapter.rooms[roomId];
     var clientToSendTo;
     var message;
 
-    if(typeof clients === 'undefined' && role === rowCounter){
-      socket.nickname = rowCounter;
-      socket.join(roomId);
-
-    }else if(role === customer && typeof clients !== 'undefined' && Object.keys(clients.sockets).length < 2){
+    if(role === customer && typeof clients !== 'undefined' && Object.keys(clients.sockets).length < 2){
       socket.nickname = customer;
       socket.join(roomId);
 
@@ -106,29 +151,31 @@ function checkNumOfUsersInRoom(socket,role, roomId){
 
     }else if(role === customer && typeof clients === 'undefined'){
       sendRoomStatus(socket,noRoom);
-      socket.disconnect();
+      // io.sockets.sockets[socket.id].disconnect();
     }else{
       sendRoomStatus(socket,roomFull);
-      socket.disconnect();
+      // io.sockets.sockets[socket.id].disconnect();
     }
 }
 
 function setClientToSendTo(socket,idToSend){
-  message = {
-    component: 'setClientToSendTo',
+  var message = {
+    component: 'set-client-id-to-send-to',
     message: idToSend
   };
   socket.emit('message',message);
 }
 
 function sendRoomStatus(socket,status){
-  message = {
-    component: 'getRoomStatus',
+  var message = {
+    component: 'get-room-status',
     message: status
   };
   socket.emit('message',message);
 }
 
-http.listen(8080, '192.168.1.182', () => {
+//////////////////////////////////////////////////////////////////////////////////////////
+
+http.listen(8080, '127.0.0.1', () => {
   console.log('started on port 8080');
 });
