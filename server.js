@@ -1,7 +1,8 @@
 'use strict';
 let app = require('express')();
 let http = require('http').Server(app);
-let io = require('socket.io')(http);
+// let io = require('socket.io')(http);
+let io = require('socket.io').listen(http);
 let mysql = require('mysql');
 let Promise = require('bluebird');
 
@@ -25,8 +26,8 @@ global.rooms = [];
 const rowCounter = 'RowCounter';
 const customer = 'Customer';
 
-const noRoom = 'No room with the roomId';
-const roomFull = 'Full';
+const noRoom = 'ไม่มี user คนนี้ที่ connect อยู่';
+const roomFull = 'ขณะนี้ห้องนี้เต็มแล้ว';
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -54,7 +55,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', ()=> {
-
     console.log('User disconnected');
   });
 });
@@ -62,7 +62,6 @@ io.on('connection', (socket) => {
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 function errorHandler(socket,error){
-  console.log(error);
   var message = {
     component: 'login-error',
     message: 'Error'
@@ -146,9 +145,10 @@ function checkNumOfUsersInRoom(socket,role, roomId){
       var rowCounterId = Object.keys(clients)[0];
       var customerId = Object.keys(clients)[1];
 
+      sendUserData(socket,roomId);
+
       setClientToSendTo(socket,rowCounterId);
       setClientToSendTo(socket.broadcast.to(rowCounterId),customerId);
-
     }else if(role === customer && typeof clients === 'undefined'){
       sendRoomStatus(socket,noRoom);
       // io.sockets.sockets[socket.id].disconnect();
@@ -174,8 +174,17 @@ function sendRoomStatus(socket,status){
   socket.emit('message',message);
 }
 
+function sendUserData(socket,roomId){
+  var user = rooms[roomId];
+  var message = {
+    component: 'user-data',
+    message: user
+  };
+  socket.emit('message',message);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
-http.listen(8080, '127.0.0.1', () => {
+http.listen(8080, '192.168.1.178', () => {
   console.log('started on port 8080');
 });
