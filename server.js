@@ -6,6 +6,18 @@ let io = require('socket.io').listen(http);
 let mysql = require('mysql');
 let Promise = require('bluebird');
 
+let memwatch = require('memwatch-next');
+
+memwatch.on('leak', (info) => {
+  console.log('info');
+  console.log(info);
+});
+
+memwatch.on('stats', (stats) => {
+  console.log('stats');
+  console.log(stats);
+})
+
 
 let dbUsername = 'root';
 let dbPassword = 'root';
@@ -122,7 +134,7 @@ function getUserData(socket,rows){
   socket.join(roomId);
   rooms[roomId] = user;
 
-  console.log(rooms[roomId]);
+  console.log(rooms);
 
   socket.emit('message',message);
 }
