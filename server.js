@@ -1,7 +1,6 @@
 'use strict';
 let app = require('express')();
 let http = require('http').Server(app);
-// let io = require('socket.io')(http);
 let io = require('socket.io').listen(http);
 let mysql = require('mysql');
 let Promise = require('bluebird');
@@ -33,19 +32,18 @@ var pool = mysql.createPool({
 });
 
 
-global.rooms = [];
+global.rooms = {};
 
 const rowCounter = 'RowCounter';
 const customer = 'Customer';
 
-const noRoom = 'ไม่มี user คนนี้ที่ connect อยู่';
+const noRoom = 'ไม่มี user คนนี้ที่เชื่อมต่ออยู่';
 const roomFull = 'ขณะนี้ห้องนี้เต็มแล้ว';
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-
+console.log(rooms);
 io.on('connection', (socket) => {
   console.log('USER CONNECTED');
-
   socket.on('message', (message) => {
     if(message.component === 'login'){
       var role = message.message.role;
@@ -61,13 +59,24 @@ io.on('connection', (socket) => {
       var roomId = message.message.roomId;
 
       checkNumOfUsersInRoom(socket,role,roomId);
+    }else if(message.component === 'logout'){
+      var roomId = message.message;
+      socket.leave(roomId);
+
+      if(io.sockets.adapter.rooms[roomId] !== undefined){
+        io.sockets.connected[message.clientId].leave(roomId);
+        socket.broadcast.to(message.clientId).emit('message',message);
+      }
+
+      delete rooms[roomId];
+      console.log(rooms);
     }else{
       socket.broadcast.to(message.clientId).emit('message',message);
     }
   });
 
   socket.on('disconnect', ()=> {
-    console.log('User disconnected');
+    console.log('User disconnected : '+socket.nickname);
   });
 });
 
@@ -132,9 +141,8 @@ function getUserData(socket,rows){
 
   socket.nickname = rowCounter;
   socket.join(roomId);
-  rooms[roomId] = user;
 
-  console.log(rooms);
+  rooms[roomId] = user;
 
   socket.emit('message',message);
 }
@@ -148,6 +156,9 @@ function checkNumOfUsersInRoom(socket,role, roomId){
     var clients = io.sockets.adapter.rooms[roomId];
     var clientToSendTo;
     var message;
+
+    console.log('clients');
+    console.log(clients);
 
     if(role === customer && typeof clients !== 'undefined' && Object.keys(clients.sockets).length < 2){
       socket.nickname = customer;
@@ -163,10 +174,8 @@ function checkNumOfUsersInRoom(socket,role, roomId){
       setClientToSendTo(socket.broadcast.to(rowCounterId),customerId);
     }else if(role === customer && typeof clients === 'undefined'){
       sendRoomStatus(socket,noRoom);
-      // io.sockets.sockets[socket.id].disconnect();
     }else{
       sendRoomStatus(socket,roomFull);
-      // io.sockets.sockets[socket.id].disconnect();
     }
 }
 
@@ -197,6 +206,6 @@ function sendUserData(socket,roomId){
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-http.listen(8080, '192.168.1.178', () => {
+http.listen(8080, '192.168.1.180', () => {
   console.log('started on port 8080');
 });
