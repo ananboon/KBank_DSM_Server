@@ -5,17 +5,17 @@ let io = require('socket.io').listen(http);
 let mysql = require('mysql');
 let Promise = require('bluebird');
 
-let memwatch = require('memwatch-next');
-
-memwatch.on('leak', (info) => {
-  console.log('info');
-  console.log(info);
-});
-
-memwatch.on('stats', (stats) => {
-  console.log('stats');
-  console.log(stats);
-})
+// let memwatch = require('memwatch-next');
+//
+// memwatch.on('leak', (info) => {
+//   console.log('info');
+//   console.log(info);
+// });
+//
+// memwatch.on('stats', (stats) => {
+//   console.log('stats');
+//   console.log(stats);
+// })
 
 
 let dbUsername = 'root';
@@ -41,9 +41,9 @@ const noRoom = 'ไม่มี user คนนี้ที่เชื่อม�
 const roomFull = 'ขณะนี้ห้องนี้เต็มแล้ว';
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-console.log(rooms);
 io.on('connection', (socket) => {
   console.log('USER CONNECTED');
+  var room = null;
   socket.on('message', (message) => {
     if(message.component === 'login'){
       var role = message.message.role;
@@ -53,6 +53,7 @@ io.on('connection', (socket) => {
       getDatabaseConnection()
       .then(queryUserData.bind(null,username,password)).catch(errorHandler.bind(null,socket))
       .then(getUserData.bind(null,socket)).catch(errorHandler.bind(null,socket));
+
 
     }else if(message.component === 'connect'){
       var role = message.message.role;
@@ -76,7 +77,34 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', ()=> {
+
     console.log('User disconnected : '+socket.nickname);
+
+    if(socket.nickname !== undefined){
+      // Send message to tell the other client to go back to home or connect
+      let string = socket.nickname.split(" ");
+      let role = string[0];
+      let roomId = string[1];
+
+
+
+      if(role === rowCounter){
+        let message = {
+          component: "logout",
+          message: roomId
+        };
+        socket.broadcast.in(roomId).emit('message', message);
+        delete io.sockets.adapter.rooms[roomId];
+        delete rooms[roomId];
+      }else{
+        // to home and stop recording;
+        let message = {
+          component: "stop-recording",
+          message: 'redirect-to-home'
+        };
+        socket.broadcast.in(roomId).emit('message', message);
+      }
+    }
   });
 });
 
@@ -139,7 +167,7 @@ function getUserData(socket,rows){
     message: user
   };
 
-  socket.nickname = rowCounter;
+  socket.nickname = rowCounter+' '+roomId;
   socket.join(roomId);
 
   rooms[roomId] = user;
@@ -161,7 +189,7 @@ function checkNumOfUsersInRoom(socket,role, roomId){
     console.log(clients);
 
     if(role === customer && typeof clients !== 'undefined' && Object.keys(clients.sockets).length < 2){
-      socket.nickname = customer;
+      socket.nickname = customer+' '+roomId;
       socket.join(roomId);
 
       var clients = io.sockets.adapter.rooms[roomId].sockets;
