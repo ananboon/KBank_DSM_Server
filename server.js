@@ -15,7 +15,7 @@ let Promise = require('bluebird');
 // memwatch.on('stats', (stats) => {
 //   console.log('stats');
 //   console.log(stats);
-// })
+// });
 
 
 let dbUsername = 'root';
@@ -178,8 +178,6 @@ function getUserData(socket,rows){
 
 function checkNumOfUsersInRoom(socket,role, roomId){
     // Check if room full
-    // If first member in room then must be row counter
-    // If second member then must be customer
 
     var clients = io.sockets.adapter.rooms[roomId];
     var clientToSendTo;
