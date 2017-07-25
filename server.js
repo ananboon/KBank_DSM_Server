@@ -72,6 +72,8 @@ io.on('connection', (socket) => {
       delete rooms[roomId];
       console.log(rooms);
     }else{
+      console.log('elseeee');
+      console.log('message',message);
       socket.broadcast.to(message.clientId).emit('message',message);
     }
   });
