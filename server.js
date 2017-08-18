@@ -72,8 +72,6 @@ io.on('connection', (socket) => {
       delete rooms[roomId];
       console.log(rooms);
     }else{
-      console.log('elseeee');
-      console.log('message',message);
       socket.broadcast.to(message.clientId).emit('message',message);
     }
   });
@@ -232,8 +230,25 @@ function sendUserData(socket,roomId){
   socket.emit('message',message);
 }
 
+
+
+app.get("/api/room", function(req, res) {
+      let room = io.sockets.adapter.rooms[1];
+      if(room === undefined){
+        handleError(res,'reasonsd','No Room','200');
+      }else{
+        res.status(200).json(room.length);
+      }
+
+});
+
+function handleError(res, reason, message, code) {
+  console.log("ERROR: " + reason);
+  res.status(code || 500).json({"error": message});
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
-http.listen(8080, '127.0.0.1', () => {
+http.listen(8080, 'localhost', () => {
   console.log('started on port 8080');
 });
