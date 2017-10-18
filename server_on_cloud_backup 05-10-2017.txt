@@ -7,14 +7,6 @@ var PORT = 443;
 // let Promise = require('bluebird');
 
 const express = require('express');
-// var session = require("express-session")({
-//     secret: "my-secret",
-//     cookie: { maxAge: 10*1000 },
-//     resave: true,
-//     saveUninitialized: true
-// });
-// var sharedsession = require("express-socket.io-session");
-
 const app = express();
 
 var request = require('request');
@@ -33,13 +25,9 @@ let Promise = require('bluebird');
 
 var https = require('https');
 var server = https.createServer(options, app);
-let io = require('socket.io')(server,{'pingInterval': 20000, 'pingTimeout': 50000});
-// io.use(sharedsession(session, {
-//     autoSave:true
-// })); 
+let io = require('socket.io')(server,{'pingInterval': 2000, 'pingTimeout': 5000});
 
-
-// app.use(session);
+// app.use(cors());
 app.use(express.static(path.join(__dirname,'dist'))); /// load resource
 app.use('/proxy/*', function(req, res) {
   req.pipe(request("https://" + req.params[0])).pipe(res);
@@ -84,10 +72,10 @@ global.rooms = {};
 const rowCounter = 'RowCounter';
 const customer = 'Customer';
 
-const noRoom = 'à¹„à¸¡à¹ˆà¸¡à¸µ user à¸„à¸™à¸™à¸µà¹‰à¸—à¸µà¹ˆà¹€à¸Šà¸·à¹ˆà¸­à¸¡à¸•à¹ˆà¸­à¸­à¸¢à¸¹à¹ˆ';
-const userAlreadyInRoom = 'à¸¡à¸µ user à¸™à¸µà¹‰à¹€à¸‚à¹‰à¸²à¹ƒà¸Šà¹‰à¸‡à¸²à¸™à¸­à¸¢à¸¹à¹ˆà¹à¸¥à¹‰à¸§';
-const roomFull = 'à¸‚à¸“à¸°à¸™à¸µà¹‰à¸«à¹‰à¸­à¸‡à¸™à¸µà¹‰à¹€à¸•à¹‡à¸¡à¹à¸¥à¹‰à¸§';
-const incorrect = 'à¸à¸£à¸¸à¸“à¸²à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹ƒà¸«à¸¡à¹ˆà¸­à¸µà¸à¸„à¸£à¸±à¹‰à¸‡';
+const noRoom = 'äÁèÁÕ user ¤¹¹Õé·Õèàª×èÍÁµèÍÍÂÙè';
+const userAlreadyInRoom = 'ÁÕ user ¹Õéà¢éÒãªé§Ò¹ÍÂÙèáÅéÇ';
+const roomFull = '¢³Ð¹ÕéËéÍ§¹ÕéàµçÁáÅéÇ';
+const incorrect = '¡ÃØ³ÒµÃÇ¨ÊÍº¢éÍÁÙÅãËÁèÍÕ¡¤ÃÑé§';
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -95,7 +83,6 @@ const incorrect = 'à¸à¸£à¸¸à¸“à¸²à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹ƒà¸«à
 io.on('connection', (socket) => {
   console.log('USER Load Page');
   var room = null;
-  // socket.setTimeout(5*100,() => console.log('timeouttt') );
   socket.on('message', (message) => {
     if(message.component === 'login'){
       var role = message.message.role;
@@ -111,7 +98,7 @@ io.on('connection', (socket) => {
       // // .then(getUserData.bind(null,socket))
       // .catch(errorHandler(socket,null,incorrect));
 
-     
+
       getDatabaseConnection()
       .then( (connection) =>  queryUserData(username,password,connection) )
       .then( (rows) => getUserData(socket,rows) )
@@ -122,12 +109,10 @@ io.on('connection', (socket) => {
       var roomId = message.message.roomId;
 
       checkNumOfUsersInRoom(socket,role,roomId);
-      // console.log('socket.handshake.session.userdata on device connect',socket.handshake.session.userdata);
     }else if(message.component === 'logout'){
       var roomId = message.message;
       socket.leave(roomId);
-      // console.log('Logout ::',message);
-      // console.log('Logout message.clientId ::',message.clientId);
+
       if(io.sockets.adapter.rooms[roomId] !== undefined){
         io.sockets.connected[message.clientId].leave(roomId);
         socket.broadcast.to(message.clientId).emit('message',message);
@@ -136,33 +121,15 @@ io.on('connection', (socket) => {
       delete rooms[roomId];
       console.log(rooms);
     }else{
-      // console.log('session expire before',socket.handshake.session.cookie.expires);
-      // console.log('new Date(Date.now()',new Date(Date.now()) );
-      // if(socket.handshake.session.cookie.expires < new Date(Date.now())){
-      //   let roomId = socket.handshake.session.userdata.id;
-      //   let messageLogOut = {component : 'logout' , message : roomId};
-      //   io.sockets.connected[message.clientId].leave(roomId);
-      //   socket.broadcast.to(roomId).emit('message',messageLogOut);
-      //   console.log('userdata in session',socket.handshake.session.userdata);
-      //   socket.handshake.session.destroy();
-      //   console.log('userdata in session after destroy',socket.handshake.session);
-      //   console.log('session already expire');
-      // }else{
-
-      //   socket.handshake.session.touch();
-      //   console.log('session expire after touch at',socket.handshake.session.cookie.expires);
-      //   console.log('session already alive');
-      // }
-
-      // console.log('message',message);
+      console.log('message',message);
       socket.broadcast.to(message.clientId).emit('message',message);
     }
   });
 
   socket.on('disconnect', ()=> {
 
-    // console.log('User disconnected : '+socket.nickname);
-    // console.log('socket.handshake.session.userdata before delete',socket.handshake.session.userdata);
+    console.log('User disconnected : '+socket.nickname);
+
     if(socket.nickname !== undefined){
       // Send message to tell the other client to go back to home or connect
       let string = socket.nickname.split(" ");
@@ -179,13 +146,6 @@ io.on('connection', (socket) => {
         socket.broadcast.in(roomId).emit('message', message);
         delete io.sockets.adapter.rooms[roomId];
         delete rooms[roomId];
-        // if (socket.handshake.session.userdata) {
-        //     console.log('socket.handshake.session.userdata before delete',socket.handshake.session.userdata);
-        //     delete socket.handshake.session.userdata;
-        //     socket.handshake.session.save();
-        //     console.log('socket.handshake.session after delete',socket.handshake.session.userdata);
-        //     console.log('socket.handshake.session after delete',socket.handshake.session);
-        // }
       }else{
         // to home and stop recording;
         let message = {
@@ -200,7 +160,6 @@ io.on('connection', (socket) => {
   socket.on('connect_timeout', (timeout) => {
     console.log('connect timeout',timeout);
   });
-
 });
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,7 +235,6 @@ function getUserData(socket,rows){
       socket.join(roomId);
 
       rooms[roomId] = user;
-      // console.log('socket.handshake.session.save();',socket.handshake.session);
 
       socket.emit('message',message);
   }else{
@@ -367,6 +325,6 @@ function handleError(res, reason, message, code) {
 
 server.listen(PORT, function() {
   console.log('server up and running at %s adress', server.address().address);
-  console.log('server up and running at %s port', PORT);
+  console.log('server up and running at %s port lllll', PORT);
 });
 
